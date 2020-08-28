@@ -1,0 +1,20 @@
+#!/bin/sh
+
+cat <<!
+Content-type: text/html
+
+<HTML>
+<HEAD><TITLE>cgi script is running</TITLE></HEAD>
+<BODY>
+<P>
+`
+awk '
+ BEGIN {
+     for (i = 0; i < 10; i++)
+	 print i, i^2 "<br>"
+}'
+`
+</P>
+</BODY>
+</HTML>
+!
