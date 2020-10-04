@@ -4,17 +4,22 @@ cat <<!
 Content-type: text/html
 
 <HTML>
-<HEAD><TITLE>cgi script is running</TITLE></HEAD>
+<HEAD><TITLE>shell</TITLE></HEAD>
 <BODY>
-<P>
+<PRE>
 `
+echo begin arg
+for i
+do printf '%s\n' "$i"
+done
+echo end arg
 awk '
  BEGIN {
      for (i = 0; i < 10; i++)
-	 print i, i^2 "<br>"
+	 print i, i^2
 }'
 `
-</P>
+</PRE>
 </BODY>
 </HTML>
 !
