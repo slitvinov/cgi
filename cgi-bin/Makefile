@@ -4,7 +4,10 @@
 .SUFFIXES: .c
 
 CFLAGS = -O2 -g
-M = c.cgi
+M = \
+c.cgi\
+error.cgi\
+
 
 all: $M
 .c.cgi:; $(CC) $(CFLAGS) $< -o $@
