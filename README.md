@@ -8,6 +8,9 @@ open in a browser <http://localhost:8000/cgi-bin/awk.cgi>
 
 <pre>
 $ (cd cgi-bin && make)
+c99 -O2 -g c.c -o c.cgi
+c99 -O2 -g error.c -o error.cgi
+c99 -O2 -g vars.c -o vars.cgi
 </pre>
 
 Open <http://localhost:8000/cgi-bin/vars.cgi>
