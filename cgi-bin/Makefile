@@ -7,7 +7,7 @@ CFLAGS = -O2 -g
 M = \
 c.cgi\
 error.cgi\
-
+vars.cgi\
 
 all: $M
 .c.cgi:; $(CC) $(CFLAGS) $< -o $@
