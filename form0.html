@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <meta charset=utf-8>
+    <title>Testing HTML forms</title>
+  </head>
+  <body>
+    <form
+      action=cgi-bin/cat.cgi
+      method=post>
+      <textarea
+	name=name>
+	La-La-La
+      </textarea>
+      <br>
+      <textarea
+	cols=72
+	name=comment
+	rows=10>
+	This is
+	some text
+	in several lines.
+      </textarea>
+      <br>      
+      <input
+	type=submit
+	value=send>
+    </form>
+  </body>
+</html>

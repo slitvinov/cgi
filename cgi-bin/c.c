@@ -14,8 +14,9 @@ Content-type: text/html\n\
     printf("%s\n", *argv);
   value = getenv("PATH_INFO");
   if (value) {
-    fputs("PATH_INFO=", stdout);
-    puts(value);
+    fputs("PATH_INFO='", stdout);
+    fputs(value, stdout);
+    putchar('\'');
   }
   puts("\
     </PRE>\n\

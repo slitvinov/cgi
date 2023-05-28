@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <meta charset=utf-8>
+    <title>Testing HTML forms</title>
+  </head>
+  <body>
+    <form
+      action=cgi-bin/cat.cgi
+      enctype=multipart/form-data
+      method=POST>
+      <h3>Comments And Feedback</h3>
+      Enter any positive comments below:
+      <br>
+      <textarea
+	name=positive
+	rows=3
+	cols=30>
+      </textarea>
+      <br>
+      Enter any negative comments below:
+      <br>
+      <textarea
+	name=negative
+	rows=3
+	cols=30>
+      </textarea>
+      <br>
+      Enter your name below:
+      <br>
+      <textarea
+	name=username
+	rows=1
+	cols=40>
+	Your Name Here
+      </textarea>
+      <br>
+      <input type=checkbox name=topping value=pepperoni> Pepperoni
+      <br>
+      <input type=checkbox name=topping value=sausage> Sausage.
+      <br>
+      <input type=checkbox name=topping value=anchovies> Anchovies.
+      <br>
+      <input
+	type=submit
+	value=Submit>
+      <input
+	type=reset
+	value=Clear>
+    </form> 
+  </body>
+</html>

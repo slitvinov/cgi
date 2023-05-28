@@ -27,7 +27,13 @@ int main() {
   if (*end != '\0')
     goto err;
   puts("Content-Type: text/plain\n");
-  printf("CONTENT_LENGTH='%ld'\n", n);
+  for (i = 0; i < sizeof names / sizeof *names; i++) {
+    value = getenv(names[i]);
+    if (value == NULL)
+      printf("%s undefined\n", names[i]);
+    else
+      printf("%s='%s'\n", names[i], value);
+  }
   for (i = 0; i < n; i++) {
     c = getchar();
     putchar(c);
