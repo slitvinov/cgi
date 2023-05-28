@@ -5,6 +5,7 @@
 
 CFLAGS = -O2 -g
 M = \
+cat.cgi\
 c.cgi\
 error.cgi\
 vars.cgi\
