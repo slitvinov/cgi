@@ -42,14 +42,14 @@ case $PATH_INFO in
 Content-Type: text/html
 
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang=en-US>
   <head>
-    <meta charset="utf-8">
+<meta charset=utf-8>
     <title>Price</title>
   </head>
   <body>
 `for i in $list
-do printf '    <a href="price.cgi/'$i'">'$i'</a><br>\n'
+do printf '    <a href=price.cgi/'$i'>'$i'</a><br>\n'
 done`
   </body>
 </html>
@@ -57,7 +57,10 @@ done`
 	 ;;
     *) t=/tmp/btc.$$
        trap 'rm $t; exit 1' 1 2 3 14 15
-       if ! curl -m 5 -s 'https://min-api.cryptocompare.com/data/price?fsym='"${PATH_INFO#\/}"'&tsyms=USD' > $t
+       if ! curl -m 5 -G \
+	    -d tsyms=USD \
+	    -d fsym="${PATH_INFO#\/}" \
+	    -s 'https://min-api.cryptocompare.com/data/price' > $t
        then
 	   cat <<'!'
 Status: 400 Bad Request
@@ -70,7 +73,7 @@ curl failed
        cat <<!
 Content-Type: text/plain
 
-`awk '{sub(/^.*:/, ""); sub(/}$/, ""); print}' $t`
+`awk -F'[:}]' '{print $2}' $t`
 !
        rm $t
 esac
