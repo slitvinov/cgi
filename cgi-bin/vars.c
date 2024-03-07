@@ -39,7 +39,7 @@ int main() {
 	  if (printf("    %s undefined\n", http[i]) < 0)
 	    return 1;
 	} else {
-	  if (printf("    %s='%s'\n", http[i], value))
+	  if (printf("    %s='%s'\n", http[i], value) < 0)
 	    return 1;
 	}
       }
