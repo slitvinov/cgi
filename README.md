@@ -14,7 +14,7 @@ c99 -O2 -g error.c -o error.cgi
 c99 -O2 -g vars.c -o vars.cgi
 </pre>
 
-Open <http://localhost:8000/cgi-bin/vars.cgi>
+open <http://localhost:8000/cgi-bin/vars.cgi>
 
 <pre>
 $ curl -d @README.md -X POST -s 'http://localhost:8000/cgi-bin/vars.cgi'

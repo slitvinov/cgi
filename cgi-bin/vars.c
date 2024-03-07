@@ -23,19 +23,25 @@ int main() {
     return 1;
   for (i = 0; i < sizeof names / sizeof *names; i++) {
     value = getenv(names[i]);
-    if (value == NULL)
-      printf("%s undefined\n", names[i]);
-    else
-      printf("%s='%s'\n", names[i], value);
+    if (value == NULL) {
+      if (printf("%s undefined\n", names[i]) < 0)
+	return 1;
+    } else {
+      if (printf("%s='%s'\n", names[i], value) < 0)
+	return 1;
+    }
   }
   if ((value = getenv("SERVER_PROTOCOL")) != NULL) {
     if (strcmp("INCLUDED", value) == 0 || strncmp("HTTP", value, 4) == 0)
       for (i = 0; i < sizeof http / sizeof *http; i++) {
         value = getenv(http[i]);
-        if (value == NULL)
-          printf("%s undefined\n", http[i]);
-        else
-          printf("%s='%s'\n", http[i], value);
+        if (value == NULL) {
+	  if (printf("    %s undefined\n", http[i]) < 0)
+	    return 1;
+	} else {
+	  if (printf("    %s='%s'\n", http[i], value))
+	    return 1;
+	}
       }
   }
   return 0;
