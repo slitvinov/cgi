@@ -1,8 +1,8 @@
+#include <ctype.h>
 #include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 struct Buf {
   char *buf;
@@ -17,7 +17,7 @@ static size_t callback(void *contents, size_t size, size_t nmemb, void *userp) {
   realsize = size * nmemb;
   mem = userp;
   if ((ptr = realloc(mem->buf, mem->size + realsize)) == NULL) {
-    fprintf(stderr, "price0: realloc failed\n");
+    fprintf(stderr, "btc: realloc failed\n");
     return 0;
   }
   mem->buf = ptr;
@@ -50,12 +50,11 @@ int main(void) {
     for (i = 0; i < mem.size; i++) {
       c = mem.buf[i];
       if (isdigit(c) || c == '.')
-	putchar(mem.buf[i]);
+        putchar(mem.buf[i]);
     }
     putchar('\n');
   }
   curl_easy_cleanup(curl_handle);
   free(mem.buf);
   curl_global_cleanup();
-  return 0;
 }

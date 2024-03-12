@@ -17,7 +17,8 @@ static const char *http[] = {
 };
 
 int main() {
-  int i;
+  int i, c;
+  long content_length, j;
   char *value;
   if (puts("Content-Type: text/plain\n") < 0)
     return 1;
@@ -25,10 +26,10 @@ int main() {
     value = getenv(names[i]);
     if (value == NULL) {
       if (printf("%s undefined\n", names[i]) < 0)
-	return 1;
+        return 1;
     } else {
       if (printf("%s='%s'\n", names[i], value) < 0)
-	return 1;
+        return 1;
     }
   }
   if ((value = getenv("SERVER_PROTOCOL")) != NULL) {
@@ -36,13 +37,19 @@ int main() {
       for (i = 0; i < sizeof http / sizeof *http; i++) {
         value = getenv(http[i]);
         if (value == NULL) {
-	  if (printf("    %s undefined\n", http[i]) < 0)
-	    return 1;
-	} else {
-	  if (printf("    %s='%s'\n", http[i], value) < 0)
-	    return 1;
-	}
+          if (printf("    %s undefined\n", http[i]) < 0)
+            return 1;
+        } else {
+          if (printf("    %s='%s'\n", http[i], value) < 0)
+            return 1;
+        }
       }
   }
-  return 0;
+  content_length = atol(getenv("CONTENT_LENGTH"));
+  if (content_length > 0) {
+    for (i = 0; i < content_length; i++) {
+      c = getchar();
+      putchar(c);
+    }
+  }
 }
