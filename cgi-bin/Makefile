@@ -11,6 +11,7 @@ btc.cgi\
 cat.cgi\
 c.cgi\
 error.cgi\
+pydoc.cgi\
 vars.cgi\
 
 all: $M
