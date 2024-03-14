@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 static const char name[] = "pydoc=";
 int main() {
   char *query_string;
@@ -10,5 +11,5 @@ int main() {
   if (query_string == NULL || strncmp(name, query_string, sizeof name - 1) != 0)
     return 1;
   query_string += sizeof name - 1;
-  printf("query_string: %s\n", query_string);
+  execlp("python", "python", "-m", "pydoc", query_string, (char*)NULL);
 }
