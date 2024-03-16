@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <unistd.h>
 static const char name[] = "pydoc=";
 int main() {
   char *query_string;
@@ -14,6 +14,5 @@ int main() {
     return 1;
   query_string += sizeof name - 1;
   if (fork() == 0)
-    execlp("python", "python", "-m", "pydoc", query_string, (char*)NULL);
-  wait(&status);
+    execlp("python", "python", "-m", "pydoc", query_string, (char *)NULL);
 }
