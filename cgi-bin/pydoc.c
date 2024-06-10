@@ -15,5 +15,5 @@ int main() {
     return 1;
   query_string += sizeof name - 1;
   if (fork() == 0)
-    execlp("python", "python", "-m", "pydoc", query_string, (char *)NULL);
+    execlp("python3", "python3", "-m", "pydoc", query_string, (char *)NULL);
 }
