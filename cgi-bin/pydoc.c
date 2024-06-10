@@ -20,25 +20,25 @@ int main() {
     execlp("python", "python", "-m", "pydoc", query_decoded, (char *)NULL);
 }
 
-static char from_hex(char ch) {
-  return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+static car from_hex(car c) {
+  return isdigit(c) ? c - '0' : tolower(c) - 'a' + 10;
 }
 
-static char *url_decode(char *str) {
-  char *pstr = str, *buf = malloc(strlen(str) + 1), *pbuf = buf;
-  while (*pstr) {
-    if (*pstr == '%') {
-      if (pstr[1] && pstr[2]) {
-	*pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
-	pstr += 2;
+static char *url_decode(char *s) {
+  char *buf = malloc(strlen(s) + 1), *p = buf;
+  while (*s) {
+    if (*s == '%') {
+      if (s[1] && s[2]) {
+        *p++ = from_hex(s[1]) << 4 | from_hex(s[2]);
+        s += 2;
       }
-    } else if (*pstr == '+') {
-      *pbuf++ = ' ';
+    } else if (*s == '+') {
+      *p++ = ' ';
     } else {
-      *pbuf++ = *pstr;
+      *p++ = *s;
     }
-    pstr++;
+    s++;
   }
-  *pbuf = '\0';
+  *p = '\0';
   return buf;
 }
