@@ -11,10 +11,12 @@ btc.cgi\
 cat.cgi\
 c.cgi\
 error.cgi\
+man.cgi\
 pydoc.cgi\
 vars.cgi\
 
 all: $M
 .c.cgi:; $(CC) $< $(CFLAGS) -o $@
+man.cgi:; $(CC) $< $(CFLAGS) -o $@ pydoc.c
 btc.cgi: btc.c; @set -x; $(CURLCC) btc.c $(CFLAGS) $(CURLFLAGS) -o $@
 clean:; rm $M
