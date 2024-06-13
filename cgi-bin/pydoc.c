@@ -1,13 +1,13 @@
 #define _XOPEN_SOURCE 700
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/wait.h>
 #include <unistd.h>
 static char *url_decode(char *);
 static const char name[] = "pydoc=";
-int main() {
+int main(int argc, char **argv) {
   char *query_string, *query_decoded;
   if (puts("Content-Type: text/plain\n") < 0)
     return 1;
@@ -16,8 +16,12 @@ int main() {
     return 1;
   query_string += sizeof name - 1;
   query_decoded = url_decode(query_string);
+  printf("%s\n", argv[0]);
   if (fork() == 0)
-    execlp("python", "python", "-m", "pydoc", query_decoded, (char *)NULL);
+    if (strcmp(argv[0], "pydoc.cgi") == 0)
+      execlp("python", "python", "-m", "pydoc", query_decoded, (char *)NULL);
+    else
+      execlp("man", "man", query_decoded, (char *)NULL);
 }
 
 static char from_hex(char c) {
@@ -29,8 +33,8 @@ static char *url_decode(char *s) {
   while (*s) {
     if (*s == '%') {
       if (s[1] && s[2]) {
-	*p++ = from_hex(s[1]) << 4 | from_hex(s[2]);
-	s += 2;
+        *p++ = from_hex(s[1]) << 4 | from_hex(s[2]);
+        s += 2;
       }
     } else if (*s == '+') {
       *p++ = ' ';
