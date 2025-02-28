@@ -35,26 +35,27 @@ int main(void) {
   mem.buf = NULL;
   mem.size = 0;
   curl_global_init(CURL_GLOBAL_ALL);
-  curl_handle = curl_easy_init();
+  if ((curl_handle = curl_easy_init()) == NULL)
+    goto err;
   curl_easy_setopt(
       curl_handle, CURLOPT_URL,
       "https://min-api.cryptocompare.com/data/price?tsyms=usd&fsym=btc");
   curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, callback);
   curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&mem);
-  res = curl_easy_perform(curl_handle);
-  if (res != CURLE_OK) {
-    puts("Content-Type: text/plain");
-    puts("Status: 502 Curl failed\n");
-  } else {
-    puts("Content-type: text/plain\n");
-    for (i = 0; i < mem.size; i++) {
-      c = mem.buf[i];
-      if (isdigit(c) || c == '.')
-        putchar(mem.buf[i]);
-    }
-    putchar('\n');
+  if ((res = curl_easy_perform(curl_handle)) != CURLE_OK)
+    goto err;
+  puts("Content-type: text/plain\n");
+  for (i = 0; i < mem.size; i++) {
+    c = mem.buf[i];
+    if (isdigit(c) || c == '.')
+      putchar(mem.buf[i]);
   }
+  putchar('\n');
   curl_easy_cleanup(curl_handle);
   free(mem.buf);
   curl_global_cleanup();
+  return 0;
+err:
+  puts("Content-Type: text/plain");
+  puts("Status: 502 Curl failed\n");
 }
