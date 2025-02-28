@@ -27,7 +27,6 @@ static size_t callback(void *contents, size_t size, size_t nmemb, void *userp) {
 }
 
 int main(void) {
-  char c;
   CURLcode res;
   CURL *curl_handle;
   size_t i;
@@ -45,11 +44,9 @@ int main(void) {
   if ((res = curl_easy_perform(curl_handle)) != CURLE_OK)
     goto err;
   puts("Content-type: text/plain\n");
-  for (i = 0; i < mem.size; i++) {
-    c = mem.buf[i];
-    if (isdigit(c) || c == '.')
+  for (i = 0; i < mem.size; i++)
+    if (isdigit(mem.buf[i]) || mem.buf[i] == '.')
       putchar(mem.buf[i]);
-  }
   putchar('\n');
   curl_easy_cleanup(curl_handle);
   free(mem.buf);
