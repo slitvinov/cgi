@@ -58,4 +58,5 @@ int main(void) {
 err:
   puts("Content-Type: text/plain");
   puts("Status: 502 Curl failed\n");
+  return 0;
 }
