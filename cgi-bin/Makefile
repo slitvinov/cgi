@@ -11,6 +11,7 @@ btc.cgi\
 cat.cgi\
 c.cgi\
 bmp.cgi\
+maze.cgi\
 error.cgi\
 man.cgi\
 pydoc.cgi\
