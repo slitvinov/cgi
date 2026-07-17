@@ -1,27 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static const char *const escapes[256] = {
+    ['<'] = "&lt;",
+    ['>'] = "&gt;",
+    ['&'] = "&amp;",
+    ['"'] = "&quot;",
+    ['\''] = "&#39;",
+};
+
 static void html_escape(const char *s) {
   for (; *s; s++) {
-    switch (*s) {
-    case '<':
-      fputs("&lt;", stdout);
-      break;
-    case '>':
-      fputs("&gt;", stdout);
-      break;
-    case '&':
-      fputs("&amp;", stdout);
-      break;
-    case '"':
-      fputs("&quot;", stdout);
-      break;
-    case '\'':
-      fputs("&#39;", stdout);
-      break;
-    default:
+    const char *e = escapes[(unsigned char)*s];
+    if (e)
+      fputs(e, stdout);
+    else
       putchar(*s);
-    }
   }
 }
 
@@ -33,19 +27,25 @@ int main(void) {
     script = getenv("SCRIPT_NAME");
     if (!script)
       script = "";
-    printf("Status: 301 Moved Permanently\n");
-    printf("Location: %s/\n\n", script);
+    printf("Status: 301 Moved Permanently\n"
+           "Location: %s/\n\n",
+           script);
     return 0;
   }
 
-  printf("Content-type: text/html\n\n");
-  printf("<html><body>\n<h1>Index of ");
+  fputs("\
+Content-type: text/html\n\
+\n\
+<html><body>\n\
+<h1>Index of ",
+        stdout);
   html_escape(path);
-  printf("</h1>\n");
-  printf("<a href=\"../\">../</a><br>\n");
-  printf("<a href=\"a/\">a/</a><br>\n");
-  printf("<a href=\"b/\">b/</a><br>\n");
-  printf("<a href=\"c/\">c/</a><br>\n");
-  printf("</body></html>\n");
+  puts("\
+</h1>\n\
+<a href=\"../\">../</a><br>\n\
+<a href=\"a/\">a/</a><br>\n\
+<a href=\"b/\">b/</a><br>\n\
+<a href=\"c/\">c/</a><br>\n\
+</body></html>");
   return 0;
 }
