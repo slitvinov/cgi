@@ -10,6 +10,7 @@ M = \
 btc.cgi\
 cat.cgi\
 c.cgi\
+bmp.cgi\
 error.cgi\
 man.cgi\
 pydoc.cgi\
