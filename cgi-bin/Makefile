@@ -12,6 +12,7 @@ cat.cgi\
 c.cgi\
 bmp.cgi\
 maze.cgi\
+map.cgi\
 error.cgi\
 man.cgi\
 pydoc.cgi\
@@ -21,4 +22,5 @@ all: $M
 .c.cgi:; $(CC) $< $(CFLAGS) -o $@
 man.cgi:; $(CC) $< $(CFLAGS) -o $@ pydoc.c
 btc.cgi: btc.c; @set -x; $(CURLCC) btc.c $(CFLAGS) $(CURLFLAGS) -o $@
+map.cgi: map.c; $(CC) map.c $(CFLAGS) -fopenmp -o $@
 clean:; rm $M
