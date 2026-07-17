@@ -1,5 +1,6 @@
 #include <omp.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 enum { w = 200, h = 200 };
 
@@ -30,6 +31,25 @@ int main(void) {
   int pad = row_size - w * 3;
   int file_size = 14 + 40 + row_size * h;
   int x, y, i;
+  int nthreads = 4;
+  const char *path = getenv("PATH_INFO");
+
+  if (path && *path == '/')
+    path++;
+  if (path && *path) {
+    char *end;
+    double n = strtod(path, &end);
+    if (*end == '\0' && n > 0)
+      nthreads = (int)n;
+    else {
+      puts("Status: 400 Bad Request\n"
+           "Content-type: text/plain\n"
+           "\n"
+           "bad thread count");
+      return 1;
+    }
+  }
+  omp_set_num_threads(nthreads);
 
 #pragma omp parallel for schedule(static)
   for (y = 0; y < h; y++) {
