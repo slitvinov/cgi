@@ -38,7 +38,7 @@ int main(void) {
     path++;
   if (path && *path) {
     char *end;
-    double n = strtod(path, &end);
+    long n = strtol(path, &end, 10);
     if (*end == '\0' && n > 0)
       nthreads = (int)n;
     else {
