@@ -98,5 +98,5 @@ err:
   if (curl_handle)
     curl_easy_cleanup(curl_handle);
   curl_global_cleanup();
-  return 0;
+  return 1;
 }
