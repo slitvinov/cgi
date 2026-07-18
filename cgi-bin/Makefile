@@ -13,6 +13,7 @@ c.cgi\
 bmp.cgi\
 maze.cgi\
 map.cgi\
+nph-julia.cgi\
 error.cgi\
 man.cgi\
 pydoc.cgi\
@@ -23,4 +24,5 @@ all: $M
 man.cgi:; $(CC) $< $(CFLAGS) -o $@ pydoc.c
 btc.cgi: btc.c; @set -x; $(CURLCC) btc.c $(CFLAGS) $(CURLFLAGS) -o $@
 map.cgi: map.c; $(CC) map.c $(CFLAGS) -fopenmp -o $@
+nph-julia.cgi: nph-julia.c; $(CC) nph-julia.c $(CFLAGS) -fopenmp -o $@ -lm
 clean:; rm $M
