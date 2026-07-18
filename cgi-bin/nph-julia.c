@@ -133,6 +133,9 @@ int main(void) {
   }
 
   printf("--%s--\r\n", boundary);
-  fflush(stdout);
+  if (fflush(stdout) != 0 || ferror(stdout)) {
+    fprintf(stderr, "nph-julia.cgi: final flush failed\n");
+    return 1;
+  }
   return 0;
 }
