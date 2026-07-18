@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tranguloid Trefoil</title>
+<style>
+  html,body{margin:0;height:100%;background:#1a1a1e;color:#e8e8ec;font-family:system-ui,sans-serif}
+  canvas#c{display:block;position:fixed;top:0;left:0}
+  #panel{position:fixed;top:12px;left:12px;padding:8px 12px;background:rgba(28,28,34,.8)}
+  #panel.loading{opacity:.4;pointer-events:none}
+  #load{position:fixed;top:8px;left:50%;transform:translateX(-50%);display:none}
+  #load.show{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="load">Loading...</div>
+<div id="panel">
+  <b>Tranguloid Trefoil</b>
+  <p>Lobes: <span id="mVal">3</span><br><input type="range" id="mRange" min="2" max="9" step="1" value="3"></p>
+  <p>Resolution: <span id="nVal">120</span><br><input type="range" id="nRange" min="20" max="250" step="10" value="120"></p>
+</div>
+<script>
+"use strict";
+
+async function loadGLB(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const buf = await res.arrayBuffer();
+  const dv = new DataView(buf);
+  const magic = String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3));
+  if(magic !== "glTF") throw new Error("bad magic: "+magic);
+  const version = dv.getUint32(4, true);
+  if(version !== 2) throw new Error("unsupported version: "+version);
+  const total = dv.getUint32(8, true);
+  let off = 12, json = null, bin = null;
+  while(off < total){
+    const clen = dv.getUint32(off, true);
+    const ctype = String.fromCharCode(dv.getUint8(off+4),dv.getUint8(off+5),dv.getUint8(off+6),dv.getUint8(off+7));
+    const data = buf.slice(off+8, off+8+clen);
+    if(ctype === "JSON") json = JSON.parse(new TextDecoder().decode(new Uint8Array(data)));
+    else if(ctype === "BIN\0") bin = data;
+    off += 8 + clen;
+  }
+  if(!json || !bin) throw new Error("missing chunks");
+  return {json, bin: new DataView(bin)};
+}
+
+const NCOMP = {SCALAR:1, VEC2:2, VEC3:3, VEC4:4};
+const GLTYPE = {5120:0x1400, 5121:0x1401, 5122:0x1402, 5123:0x1403, 5125:0x1405, 5126:0x1406};
+const BYTES = {5120:1, 5121:1, 5122:2, 5123:2, 5125:4, 5126:4};
+
+function accView(json, accIdx, bin){
+  const acc = json.accessors[accIdx];
+  const bv = json.bufferViews[acc.bufferView];
+  const ncomp = NCOMP[acc.type];
+  const gltype = GLTYPE[acc.componentType];
+  const bpe = BYTES[acc.componentType];
+  const stride = bv.byteStride || (ncomp * bpe);
+  const offset = (bv.byteOffset || 0) + (acc.byteOffset || 0);
+  return {count: acc.count, ncomp, gltype, stride, offset, target: bv.target, min: acc.min, max: acc.max};
+}
+
+function mat4identity(){
+  const m = new Float32Array(16);
+  m[0]=m[5]=m[10]=m[15]=1;
+  return m;
+}
+
+function mat4mul(a, b){
+  const o = new Float32Array(16);
+  for(let r=0;r<4;r++){
+    for(let c=0;c<4;c++){
+      let s=0;
+      for(let k=0;k<4;k++) s += a[k*4+r]*b[c*4+k];
+      o[c*4+r] = s;
+    }
+  }
+  return o;
+}
+
+function mat4perspective(fovy, aspect, near, far){
+  const f = 1.0/Math.tan(fovy/2);
+  const m = new Float32Array(16);
+  const nf = 1/(near - far);
+  m[0]=f/aspect; m[5]=f; m[10]=(far+near)*nf; m[11]=-1; m[14]=2*far*near*nf;
+  return m;
+}
+
+function mat4rotateY(a){
+  const c=Math.cos(a), s=Math.sin(a);
+  const m=mat4identity();
+  m[0]=c; m[2]=-s; m[8]=s; m[10]=c;
+  return m;
+}
+
+function mat4rotateX(a){
+  const c=Math.cos(a), s=Math.sin(a);
+  const m=mat4identity();
+  m[5]=c; m[6]=s; m[9]=-s; m[10]=c;
+  return m;
+}
+
+function mat4translate(x,y,z){
+  const m=mat4identity();
+  m[12]=x; m[13]=y; m[14]=z;
+  return m;
+}
+
+const VS = `#version 300 es
+precision highp float;
+in vec3 aPos;
+in vec3 aCol;
+uniform mat4 uProj;
+uniform mat4 uView;
+uniform mat4 uModel;
+out vec3 vCol;
+out vec3 vPos;
+void main(){
+  vec4 wp = uModel * vec4(aPos, 1.0);
+  vPos = wp.xyz;
+  vCol = aCol;
+  gl_Position = uProj * uView * wp;
+}`;
+
+const FS = `#version 300 es
+precision highp float;
+in vec3 vCol;
+in vec3 vPos;
+uniform vec3 uLight;
+uniform vec3 uCam;
+out vec4 frag;
+
+vec3 NeutralToneMapping(vec3 color){
+  const float StartCompression = 0.8 - 0.04;
+  const float Desaturation = 0.15;
+  float x = min(color.r, min(color.g, color.b));
+  float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  color -= offset;
+  float peak = max(color.r, max(color.g, color.b));
+  if(peak < StartCompression) return color;
+  float d = 1.0 - StartCompression;
+  float newPeak = 1.0 - d * d / (peak + d - StartCompression);
+  color *= newPeak / peak;
+  float g = 1.0 - 1.0 / (Desaturation * (peak - newPeak) + 1.0);
+  return mix(color, vec3(newPeak), g);
+}
+
+void main(){
+  vec3 dx = dFdx(vPos);
+  vec3 dy = dFdy(vPos);
+  vec3 n = normalize(cross(dx, dy));
+  vec3 v = normalize(uCam - vPos);
+  vec3 l = normalize(uLight);
+  float diff = max(dot(n, l), 0.0);
+  float amb = 0.25;
+  vec3 base = vCol;
+  vec3 col = base * (amb + 0.85 * diff);
+  float spec = pow(max(dot(reflect(-l, n), v), 0.0), 32.0);
+  col += vec3(spec) * 0.3;
+  col = NeutralToneMapping(col);
+  col = pow(col, vec3(1.0/2.2));
+  frag = vec4(col, 1.0);
+}`;
+
+function compile(gl, type, src){
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    const log = gl.getShaderInfoLog(sh);
+    gl.deleteShader(sh);
+    throw new Error("shader: "+log);
+  }
+  return sh;
+}
+
+function link(gl, vs, fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, vs);
+  gl.attachShader(p, fs);
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)){
+    throw new Error("link: "+gl.getProgramInfoLog(p));
+  }
+  return p;
+}
+
+async function main(){
+  const clampM = v => Math.max(2, Math.min(9, parseInt(v) || 3));
+  const clampN = v => Math.max(20, Math.min(250, Math.round((parseInt(v) || 120)/10)*10));
+  let m = clampM(new URLSearchParams(location.search).get("m"));
+  let n = clampN(new URLSearchParams(location.search).get("n"));
+
+  const mRange = document.getElementById("mRange");
+  const nRange = document.getElementById("nRange");
+  const mVal = document.getElementById("mVal");
+  const nVal = document.getElementById("nVal");
+  const panel = document.getElementById("panel");
+  const load = document.getElementById("load");
+  mRange.value = m; nRange.value = n; mVal.textContent = m; nVal.textContent = n;
+
+  const canvas = document.getElementById("c");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const gl = canvas.getContext("webgl2");
+  if(!gl){ document.body.appendChild(document.createTextNode("WebGL2 not supported")); return; }
+
+  const vs = compile(gl, gl.VERTEX_SHADER, VS);
+  const fs = compile(gl, gl.FRAGMENT_SHADER, FS);
+  const prog = link(gl, vs, fs);
+  gl.useProgram(prog);
+
+  const uProj  = gl.getUniformLocation(prog, "uProj");
+  const uView  = gl.getUniformLocation(prog, "uView");
+  const uModel = gl.getUniformLocation(prog, "uModel");
+  const uLight = gl.getUniformLocation(prog, "uLight");
+  const uCam   = gl.getUniformLocation(prog, "uCam");
+  const aPos = gl.getAttribLocation(prog, "aPos");
+  const aCol = gl.getAttribLocation(prog, "aCol");
+
+  gl.enable(gl.DEPTH_TEST);
+
+  const fovy = Math.PI/4;
+  const aspect = canvas.width/canvas.height;
+  const proj = mat4perspective(fovy, aspect, 0.01, 1000);
+  gl.uniformMatrix4fv(uProj, false, proj);
+  const halfH = Math.tan(fovy/2);
+  const halfW = halfH * aspect;
+
+  let model = null;
+  let camDist = 1, minDist = 0.1, maxDist = 100;
+
+  async function loadModel(mm, nn){
+    panel.classList.add("loading");
+    load.classList.add("show");
+    try{
+      const url = "/cgi-bin/tranguloid.cgi?m="+mm+"&n="+nn+"&_="+Date.now();
+      const {json, bin} = await loadGLB(url);
+      if(model && model.posBuf) gl.deleteBuffer(model.posBuf);
+      if(model && model.idxBuf) gl.deleteBuffer(model.idxBuf);
+
+      const mesh = json.meshes[0];
+      const prim = mesh.primitives[0];
+      const posAcc = accView(json, prim.attributes.POSITION, bin);
+      const colAcc = prim.attributes.COLOR_0 ? accView(json, prim.attributes.COLOR_0, bin) : null;
+      const idxAcc = prim.indices != null ? accView(json, prim.indices, bin) : null;
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bin.buffer, 0), gl.STATIC_DRAW);
+
+      let idxBuf = null, indexCount = 0, indexType = 0, idxOffset = 0;
+      if(idxAcc){
+        idxBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(bin.buffer, 0), gl.STATIC_DRAW);
+        indexCount = idxAcc.count;
+        indexType = idxAcc.gltype;
+        idxOffset = idxAcc.offset;
+      } else {
+        indexCount = posAcc.count;
+      }
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, posAcc.ncomp, posAcc.gltype, false, posAcc.stride, posAcc.offset);
+      if(colAcc){
+        gl.enableVertexAttribArray(aCol);
+        gl.vertexAttribPointer(aCol, colAcc.ncomp, colAcc.gltype, false, colAcc.stride, colAcc.offset);
+      }
+
+      const mn = posAcc.min, mx = posAcc.max;
+      const center = [(mn[0]+mx[0])/2, (mn[1]+mx[1])/2, (mn[2]+mx[2])/2];
+      const ext = [mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]];
+      const radius = Math.max(ext[0], Math.max(ext[1], ext[2]))/2;
+
+      model = {posBuf, idxBuf, indexCount, indexType, idxOffset, center, radius};
+      const idealDist = radius / Math.min(halfH, halfW);
+      camDist = Math.max(idealDist * 1.1, 0.1);
+      minDist = radius * 0.1;
+      maxDist = idealDist * 10;
+      panX = 0; panY = 0;
+    } catch(e){
+      console.error(e);
+    } finally {
+      panel.classList.remove("loading");
+      load.classList.remove("show");
+    }
+  }
+
+  let rotX = 0.5, rotY = 0, dragging = false, panning = false, lastX=0, lastY=0;
+  let panX = 0, panY = 0;
+  let lastInteractionTime = performance.now();
+  const bumpInteraction = () => { lastInteractionTime = performance.now(); };
+  const panSpeed = () => 2 * camDist * Math.tan(fovy/2) / canvas.height;
+  const isPanMod = e => e.button === 2 || e.shiftKey || e.ctrlKey || e.metaKey;
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("mousedown", e => {
+    lastX=e.clientX; lastY=e.clientY; bumpInteraction();
+    if(isPanMod(e)){ panning = true; } else { dragging = true; }
+  });
+  window.addEventListener("mouseup",   () => { dragging = false; panning = false; });
+  window.addEventListener("mousemove", e => {
+    if(!dragging && !panning) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    if(panning){
+      const s = panSpeed();
+      panX += dx * s;
+      panY -= dy * s;
+    } else {
+      rotY += dx * 0.01;
+      rotX += dy * 0.01;
+    }
+    lastX = e.clientX; lastY = e.clientY;
+    bumpInteraction();
+  });
+  window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  });
+
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    const factor = Math.exp(e.deltaY * 0.001);
+    camDist = Math.max(minDist, Math.min(maxDist, camDist * factor));
+    bumpInteraction();
+  }, {passive: false});
+
+  let pinchDist = 0, cxTouch = 0, cyTouch = 0;
+  canvas.addEventListener("touchstart", e => {
+    e.preventDefault();
+    bumpInteraction();
+    if(e.touches.length === 1){ dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+    else if(e.touches.length === 2){
+      dragging = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchDist = Math.hypot(dx, dy);
+      cxTouch = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      cyTouch = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }
+  }, {passive: false});
+  canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    bumpInteraction();
+    if(e.touches.length === 1 && dragging){
+      rotY += (e.touches[0].clientX - lastX) * 0.01;
+      rotX += (e.touches[0].clientY - lastY) * 0.01;
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    } else if(e.touches.length === 2){
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const d = Math.hypot(dx, dy);
+      if(pinchDist > 0){
+        const factor = pinchDist / d;
+        camDist = Math.max(minDist, Math.min(maxDist, camDist * factor));
+      }
+      const ncx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const ncy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const s = panSpeed();
+      panX += (ncx - cxTouch) * s;
+      panY -= (ncy - cyTouch) * s;
+      cxTouch = ncx; cyTouch = ncy;
+      pinchDist = d;
+    }
+  }, {passive: false});
+  canvas.addEventListener("touchend", () => { dragging = false; pinchDist = 0; }, {passive: false});
+
+  const AUTO_ROTATE_DELAY = 3000;
+  const AUTO_ROTATE_SPEED = Math.PI / 32;
+  let turntableYaw = 0, lastT = performance.now();
+
+  function render(t){
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.1, 0.1, 0.12, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    if(model){
+      const dt = t - lastT;
+      lastT = t;
+      if(t - lastInteractionTime > AUTO_ROTATE_DELAY){
+        turntableYaw += AUTO_ROTATE_SPEED * dt * 0.001;
+      }
+
+      const view = mat4translate(panX, panY, -camDist);
+      gl.uniformMatrix4fv(uView, false, view);
+
+      const cx = model.center[0], cy = model.center[1], cz = model.center[2];
+      const mm = mat4mul(mat4mul(mat4rotateY(rotY + turntableYaw), mat4rotateX(rotX)), mat4translate(-cx, -cy, -cz));
+      gl.uniformMatrix4fv(uModel, false, mm);
+
+      gl.uniform3f(uLight, 2, 3, 4);
+      gl.uniform3f(uCam, -panX, -panY, camDist);
+
+      if(model.idxBuf){
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.idxBuf);
+        gl.drawElements(gl.TRIANGLES, model.indexCount, model.indexType, model.idxOffset);
+      } else {
+        gl.drawArrays(gl.TRIANGLES, 0, model.indexCount);
+      }
+    } else {
+      lastT = t;
+    }
+    requestAnimationFrame(render);
+  }
+
+  let loadTimer = null;
+  function scheduleReload(){
+    if(loadTimer) clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => { loadTimer = null; loadModel(m, n); }, 150);
+  }
+  mSel.addEventListener("input", () => {
+    m = parseInt(mSel.value);
+    mVal.textContent = m;
+    scheduleReload();
+  });
+  nRange.addEventListener("input", () => {
+    n = clampN(parseInt(nRange.value));
+    nVal.textContent = n;
+    if(parseInt(nRange.value) !== n) nRange.value = n;
+    scheduleReload();
+  });
+
+  loadModel(m, n);
+  requestAnimationFrame(render);
+}
+
+main();
+</script>
+</body>
+</html>
