@@ -290,7 +290,7 @@ async function main(){
     }
   }
 
-  let rotX = 0.5, rotY = 0, dragging = false, panning = false, lastX=0, lastY=0;
+  let rot = mat4rotateX(0.5), dragging = false, panning = false, lastX=0, lastY=0;
   let panX = 0, panY = 0;
   let lastInteractionTime = performance.now();
   const bumpInteraction = () => { lastInteractionTime = performance.now(); };
@@ -310,8 +310,7 @@ async function main(){
       panX += dx * s;
       panY -= dy * s;
     } else {
-      rotY += dx * 0.01;
-      rotX += dy * 0.01;
+      rot = mat4mul(mat4mul(mat4rotateY(dx * 0.01), mat4rotateX(dy * 0.01)), rot);
     }
     lastX = e.clientX; lastY = e.clientY;
     bumpInteraction();
@@ -347,8 +346,8 @@ async function main(){
     e.preventDefault();
     bumpInteraction();
     if(e.touches.length === 1 && dragging){
-      rotY += (e.touches[0].clientX - lastX) * 0.01;
-      rotX += (e.touches[0].clientY - lastY) * 0.01;
+      const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY;
+      rot = mat4mul(mat4mul(mat4rotateY(dx * 0.01), mat4rotateX(dy * 0.01)), rot);
       lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
     } else if(e.touches.length === 2){
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -371,7 +370,7 @@ async function main(){
 
   const AUTO_ROTATE_DELAY = 3000;
   const AUTO_ROTATE_SPEED = Math.PI / 32;
-  let turntableYaw = 0, lastT = performance.now();
+  let lastT = performance.now();
 
   function render(t){
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -382,14 +381,14 @@ async function main(){
       const dt = t - lastT;
       lastT = t;
       if(t - lastInteractionTime > AUTO_ROTATE_DELAY){
-        turntableYaw += AUTO_ROTATE_SPEED * dt * 0.001;
+        rot = mat4mul(mat4rotateY(AUTO_ROTATE_SPEED * dt * 0.001), rot);
       }
 
       const view = mat4translate(panX, panY, -camDist);
       gl.uniformMatrix4fv(uView, false, view);
 
       const cx = model.center[0], cy = model.center[1], cz = model.center[2];
-      const mm = mat4mul(mat4mul(mat4rotateY(rotY + turntableYaw), mat4rotateX(rotX)), mat4translate(-cx, -cy, -cz));
+      const mm = mat4mul(rot, mat4translate(-cx, -cy, -cz));
       gl.uniformMatrix4fv(uModel, false, mm);
 
       gl.uniform3f(uLight, 2, 3, 4);
@@ -412,8 +411,8 @@ async function main(){
     if(loadTimer) clearTimeout(loadTimer);
     loadTimer = setTimeout(() => { loadTimer = null; loadModel(m, n); }, 150);
   }
-  mSel.addEventListener("input", () => {
-    m = parseInt(mSel.value);
+  mRange.addEventListener("input", () => {
+    m = clampM(mRange.value);
     mVal.textContent = m;
     scheduleReload();
   });
